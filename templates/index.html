@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Coffee Sales Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root {
+  --bg:#f6f1eb;
+  --card:#ffffff;
+  --border:#e3d5c7;
+  --text:#3e2f23;
+  --muted:#8b6f5a;
+  --coffee:#8b5e3c;
+  --radius:14px;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Segoe UI',sans-serif;
+  padding:25px;
+}
+
+/* HEADER */
+.header{
+  margin-bottom:30px;
+}
+
+.header h1{
+  color:var(--coffee);
+}
+
+.section{
+  margin-bottom:50px;
+}
+
+/* CARD */
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:18px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.05);
+}
+
+/* GRID */
+.kpi{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:15px;
+  margin-bottom:20px;
+}
+
+.grid2{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:15px;
+  margin-bottom:20px;
+}
+
+h2{
+  margin-bottom:10px;
+  color:var(--coffee);
+}
+
+p{
+  color:var(--muted);
+  margin-bottom:15px;
+}
+
+@media(max-width:900px){
+  .kpi,.grid2{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h1>☕ Coffee Sales Dashboard</h1>
+  <p>Analisis penjualan kopi 2024</p>
+</div>
+
+<!-- KPI -->
+<div class="section">
+  <div class="kpi">
+    <div class="card">Total Transaksi<br><b id="k1"></b></div>
+    <div class="card">Total Pendapatan<br><b id="k2"></b></div>
+    <div class="card">Rata-rata<br><b id="k3"></b></div>
+  </div>
+</div>
+
+<!-- TOP & PAYMENT -->
+<div class="section grid2">
+  <div class="card">
+    <h2>Top Produk</h2>
+    <canvas id="ov-top"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>Metode Pembayaran</h2>
+    <canvas id="ov-pay"></canvas>
+  </div>
+</div>
+
+<!-- MONTHLY -->
+<div class="section">
+  <div class="card">
+    <h2>Tren Bulanan</h2>
+    <canvas id="ov-monthly"></canvas>
+  </div>
+</div>
+
+<!-- DISTRIBUSI -->
+<div class="section grid2">
+  <div class="card">
+    <h2>Histogram</h2>
+    <canvas id="d-hist"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>Boxplot</h2>
+    <canvas id="d-box"></canvas>
+  </div>
+</div>
+
+<div class="section">
+  <div class="card">
+    <h2>Scatter Jam vs Harga</h2>
+    <canvas id="d-scatter"></canvas>
+  </div>
+</div>
+
+<!-- PRODUK -->
+<div class="section grid2">
+  <div class="card">
+    <h2>Produk Terlaris</h2>
+    <canvas id="p-bar"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>Pendapatan per Pembayaran</h2>
+    <canvas id="p-pay-bar"></canvas>
+  </div>
+</div>
+
+<div class="section">
+  <div class="card">
+    <h2>Proporsi Produk</h2>
+    <canvas id="p-pie"></canvas>
+  </div>
+</div>
+
+<!-- WAKTU -->
+<div class="section">
+  <div class="card">
+    <h2>Penjualan per Jam</h2>
+    <canvas id="pw-hour"></canvas>
+  </div>
+</div>
+
+<div class="section">
+  <div class="card">
+    <h2>Heatmap</h2>
+    <div id="heatmap-wrap"></div>
+  </div>
+</div>
+
+<script>
+const fmt = v => new Intl.NumberFormat('id-ID').format(v)
+
+async function get(u){
+  const r = await fetch(u)
+  return r.json()
+}
+
+async function init(){
+
+// KPI
+let kpi = await get('/api/kpi')
+k1.innerText = fmt(kpi.total_transaksi)
+k2.innerText = '$'+fmt(kpi.total_pendapatan)
+k3.innerText = '$'+fmt(kpi.rata_money)
+
+// TOP
+let tp = await get('/api/top_products')
+new Chart(document.getElementById('ov-top'),{
+  type:'bar',
+  data:{labels:tp.labels,datasets:[{data:tp.counts,backgroundColor:'#8b5e3c'}]}
+})
+
+// PAYMENT
+let pay = await get('/api/payment')
+new Chart(document.getElementById('ov-pay'),{
+  type:'doughnut',
+  data:{labels:pay.labels,datasets:[{data:pay.counts}]}
+})
+
+// MONTHLY
+let mo = await get('/api/monthly')
+new Chart(document.getElementById('ov-monthly'),{
+  type:'line',
+  data:{labels:mo.labels,datasets:[{data:mo.values,borderColor:'#8b5e3c'}]}
+})
+
+// HIST
+let hist = await get('/api/histogram')
+new Chart(document.getElementById('d-hist'),{
+  type:'bar',
+  data:{labels:hist.labels,datasets:[{data:hist.values}]}
+})
+
+// BOX
+let box = await get('/api/boxplot')
+new Chart(document.getElementById('d-box'),{
+  type:'bar',
+  data:{
+    labels:['Min','Q1','Median','Q3','Max'],
+    datasets:[{data:[box.min,box.q1,box.median,box.q3,box.max]}]
+  }
+})
+
+// SCATTER
+let sc = await get('/api/scatter')
+new Chart(document.getElementById('d-scatter'),{
+  type:'scatter',
+  data:{
+    datasets:[{
+      data: sc.x.map((x,i)=>({x:x,y:sc.y[i]}))
+    }]
+  }
+})
+
+// PRODUK
+new Chart(document.getElementById('p-bar'),{
+  type:'bar',
+  data:{labels:tp.labels,datasets:[{data:tp.counts}]}
+})
+
+// PAY BAR
+new Chart(document.getElementById('p-pay-bar'),{
+  type:'bar',
+  data:{labels:pay.labels,datasets:[{data:pay.revenue}]}
+})
+
+// PIE
+new Chart(document.getElementById('p-pie'),{
+  type:'doughnut',
+  data:{labels:tp.labels,datasets:[{data:tp.counts}]}
+})
+
+// HOURLY
+let hr = await get('/api/hourly')
+new Chart(document.getElementById('pw-hour'),{
+  type:'bar',
+  data:{labels:hr.labels,datasets:[{data:hr.values}]}
+})
+
+// HEATMAP (FINAL — clean tanpa background hitam)
+let hm = await get('/api/heatmap')
+
+let max = Math.max(...hm.matrix.flat())
+
+let html = `
+<div style="
+  padding:10px 0;
+  overflow-x:auto;
+">
+
+<h2 style="color:#8b5e3c;margin-bottom:5px">
+  Heatmap — Hari vs Jam
+</h2>
+<p style="color:#8b6f5a;font-size:13px;margin-bottom:15px">
+  Total pendapatan (warna lebih terang = lebih tinggi)
+</p>
+
+<table style="
+  width:100%;
+  border-collapse:separate;
+  border-spacing:4px;
+  font-size:13px;
+">
+<tr>
+  <th style="
+    background:#8b5e3c;
+    color:white;
+    padding:10px;
+    border-radius:6px;
+  ">Hari</th>
+`
+
+// HEADER JAM
+hm.hours.forEach(h=>{
+  html += `
+  <th style="
+    background:#a47148;
+    color:white;
+    padding:10px;
+    border-radius:6px;
+    text-align:center;
+  ">
+    ${h}:00
+  </th>`
+})
+
+html += '</tr>'
+
+// DATA
+hm.days.forEach((day,i)=>{
+
+  html += `
+  <tr>
+    <td style="
+      background:#f1e6dc;
+      padding:10px;
+      font-weight:600;
+      border-radius:6px;
+      color:#5a3e2b;
+    ">
+      ${day.slice(0,3)}
+    </td>
+  `
+
+  hm.matrix[i].forEach(val=>{
+    let intensity = val / max
+
+    // ☕ warna coffee (soft & sesuai tema)
+    let r = Math.floor(120 + intensity * 60)
+    let g = Math.floor(80 + intensity * 50)
+    let b = Math.floor(50 + intensity * 40)
+
+    let text = intensity > 0.6 ? '#fff' : '#3e2f23'
+
+    html += `
+    <td style="
+      background:rgb(${r},${g},${b});
+      text-align:center;
+      padding:12px;
+      border-radius:8px;
+      font-weight:500;
+    ">
+      ${val > 0 ? '$' + Math.round(val) : ''}
+    </td>`
+  })
+
+  html += '</tr>'
+})
+
+html += '</table></div>'
+
+document.getElementById('heatmap-wrap').innerHTML = html
+
+}
+
+init()
+</script>
+
+</body>
+</html>
